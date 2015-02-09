@@ -20,14 +20,15 @@ import android.widget.Toast;
 
 public class GuardService extends IGuardService.Stub{
     private static final String TAG = GuardService.class.getName();
-    
     private Context ctx;
     private Thread t;
     private Handler handler;
-    
-    protected ArrayList<CovertReceiver> activeRx = new ArrayList<CovertReceiver>();
-    protected ArrayList<CovertSender> activeTx = new ArrayList<CovertSender>();
-    private ArrayList<GSTimer> gsTimers = new ArrayList<GSTimer>();
+    private volatile Thread[] txDelayThread = new Thread[CovertTransceiver.COVERT_NUMS]; // yytang
+
+    protected CovertSender[] activeTx = new CovertSender[CovertTransceiver.COVERT_NUMS];
+    //protected ArrayList<CovertReceiver> activeRx = new ArrayList<CovertReceiver>();
+    //protected ArrayList<CovertSender> activeTx = new ArrayList<CovertSender>();
+    //private ArrayList<GSTimer> gsTimers = new ArrayList<GSTimer>();
     
     private boolean[] channelDefenseState = new boolean[5];
     
@@ -39,10 +40,18 @@ public class GuardService extends IGuardService.Stub{
         super();
         Log.d(TAG, "Constructing GuardService");
         ctx = newCTX;
+        initGuardService();
         t = new GuardServiceThread("Guard Service Thread");
         t.start();
     }
-    
+
+    private void initGuardService(){
+        activeTx[0] = new CovertSender("speaker");
+        activeTx[1] = new CovertSender("vibrator");
+        activeTx[2] = new CovertSender("flash");
+        activeTx[3] = new CovertSender("user");
+    }
+	
     public static IGuardService getInstance(){
 	    try{
 	    	return IGuardService.Stub.asInterface(ServiceManager.getService("GuardService"));
@@ -80,445 +89,188 @@ public class GuardService extends IGuardService.Stub{
         	CovertReceiver rx;
         	CovertSender tx;
             switch(msg.what){
-                    
-                case GuardServiceHelper.ADD_ACTIVE_RX: // add a receiver
-                    rx = (CovertReceiver)msg.obj;
-                    activeRx.add(rx);
-                    Log.d(TAG, getActiveReceivers());
-                    updateChannels();
-                    break;
-                    
-                case GuardServiceHelper.REMOVE_ACTIVE_RX: // remote receiver
-                	rx = (CovertReceiver)msg.obj;
-                	removeRxInstances(rx);
-                	Log.d(TAG, getActiveReceivers());
-                	updateChannels();
-                	break;
-                	
                 case GuardServiceHelper.ADD_ACTIVE_TX: // add sender
                 	tx = (CovertSender)msg.obj;
-                	activeTx.add(tx);
-                	Log.d(TAG, getActiveSenders());
-                	updateChannels();
+                    addTxInstances(tx);
+                    getActiveSenders();
+                	//updateChannels();
                 	break;
                 	
                 case GuardServiceHelper.REMOVE_ACTIVE_TX: // remove sender
                 	tx = (CovertSender)msg.obj;
                 	removeTxInstances(tx);
-                	Log.d(TAG, getActiveSenders());
-                	updateChannels();
+                    getActiveSenders();
+                	//updateChannels();
                 	break;
             }
         }
     }
-    
-    private CovertSender getActiveSender(int sensorID){
-		for(int i = 0; i < activeTx.size(); i++){
-			//Log.d(TAG, "Looking for sensorType: " + sensorType + "  comparing to: " + list.get(i).getDeviceID() + " - " + list.get(i).getDeviceID() == sensorType);
-			if(activeTx.get(i).getDeviceID() == sensorID){
-				return  activeTx.get(i);
-			}
-		}
-		return null;
+
+    private void addTxInstances(CovertSender tx){
+        int index = tx.getDeviceID();
+        activeTx[index].taint = tx.taint;
+        switch(index){
+            case 0:
+                activeTx[index].taint |= Taint.TAINT_SPKR;
+                break;
+            case 1:
+                activeTx[index].taint |= Taint.TAINT_VIB;
+                break;
+            case 2:
+                activeTx[index].taint |= Taint.TAINT_FLASH;
+                break;
+            case 3:
+                activeTx[index].taint |= Taint.TAINT_USER;
+                break;
+        }
     }
-    
-    private CovertReceiver getActiveReceiver(int sensorID){
-		for(int i = 0; i < activeRx.size(); i++){
-			//Log.d(TAG, "Looking for sensorType: " + sensorType + "  comparing to: " + list.get(i).getDeviceID() + " - " + list.get(i).getDeviceID() == sensorType);
-			if(activeRx.get(i).getDeviceID() == sensorID){
-				return  activeRx.get(i);
-			}
-		}
-		return null;
+
+    private void removeTxInstances(CovertSender tx){
+        int index = tx.getDeviceID();
+        activeTx[index].taint = Taint.TAINT_CLEAR;
     }
-    
-    
-    private boolean isPresent(int sensorID, int transceiverType){
-    	//ArrayList<? extends CovertTransceiver> list;
-    	if(transceiverType == CovertTransceiver.TYPE_SENDER){
-    		if(getActiveSender(sensorID) != null){
-    			return true;
-    		}
-    	}
-    	else if (transceiverType == CovertTransceiver.TYPE_RECEIVER){
-    		if(getActiveReceiver(sensorID) != null){
-    			return true;
-    		}
-    	}
-    	else{
-    		throw new IllegalArgumentException("Invalid Transceiver Type: " + transceiverType);
-    	}
-		return false;
-    }
-    
-    private void updateChannels(){
-    	// We are concerned with five channels:
-    	// 1.) Ultrasound
-    	// 2.) Vib + Accel
-    	// 3.) Speaker + Accel
-    	// 4.) Flash + Cam
-    	// 5.) User + Gryo
-    	int[] channels = {GuardServiceHelper.DEV_SPKR, GuardServiceHelper.DEV_MIC, 
-    			GuardServiceHelper.DEV_VIB, GuardServiceHelper.DEV_ACCEL,
-    			GuardServiceHelper.DEV_SPKR, GuardServiceHelper.DEV_ACCEL,
-    			GuardServiceHelper.DEV_FLASH, GuardServiceHelper.DEV_CAM,
-    			GuardServiceHelper.DEV_USER, GuardServiceHelper.DEV_GYRO};
-    	
-    	// Check for each channel
-    	for(int i = 0; i < channels.length/2; i++){
-    		int sender = channels[i*2];
-    		int receiver = channels[(i*2) +1];
-    		
-    		if(isPresent(sender, CovertTransceiver.TYPE_SENDER) && isPresent(receiver, CovertTransceiver.TYPE_RECEIVER)){
-    			// This is a bit hacky
-    			// It works because the channels list above, 
-    			// and the channel ints in GuardServiceHelper,
-    			// and the channelDefenseState array all align
-    			channelDefenseState[i] = true;
-    			Log.d(TAG, "Channel present!  Index: " + i + "  sender int: " + sender + "  reciever int: " + receiver);
-    		}
-    		else{
-    			channelDefenseState[i] = false; // erase the channels that aren't present
-    		}
-    	}
-    	
-    }
-    
-    
-    /**
-     * @hide
-     */
-    public void addActiveRx(CovertTransceiver trans){
-    	//Log.d(TAG, "addActiveRx called");
-    	CovertReceiver rx = trans.toCovertReceiver();
-    	activeRxChangeMessage(rx, GuardServiceHelper.ADD_ACTIVE_RX);
-    }
-    
-    /**
-     * @hide
-     */
-    public void removeActiveRx(CovertTransceiver trans){
-    	//Log.d(TAG, "removeActiveRx called");
-    	// Downcasting!
-    	CovertReceiver rx = trans.toCovertReceiver();
-    	activeRxChangeMessage(rx, GuardServiceHelper.REMOVE_ACTIVE_RX);
-    }
-    
-    private void activeRxChangeMessage(CovertReceiver rx, int msgType){
-    	Message msg = Message.obtain();
-    	msg.what = msgType;
-    	msg.obj = rx;
-    	handler.dispatchMessage(msg);
-    }
-    
-    
+	
     /**
      * @hide
      */
     public void addActiveTx(CovertTransceiver trans){
-    	//Log.d(TAG, "addActiveSink called");
-    	CovertSender tx = trans.toCovertSender();
-    	activeTxChangeMessage(tx, GuardServiceHelper.ADD_ACTIVE_TX);
+        Log.d(TAG, "addActiveSink called");
+        CovertSender tx = trans.toCovertSender();
+        activeTxChangeMessage(tx, GuardServiceHelper.ADD_ACTIVE_TX);
     }
     
     /**
      * @hide 
      */
     public void removeActiveTx(CovertTransceiver trans){
-    	//Log.d(TAG, "removeActiveSink called");
-    	CovertSender tx = trans.toCovertSender();
-    	activeTxChangeMessage(tx, GuardServiceHelper.REMOVE_ACTIVE_TX);
+        Log.d(TAG, "removeActiveSink called");
+        CovertSender tx = trans.toCovertSender();
+        activeTxChangeMessage(tx, GuardServiceHelper.REMOVE_ACTIVE_TX);
     }
-    
-    private void activeTxChangeMessage(CovertSender tx, int msgType){
-    	Message msg = Message.obtain();
-    	msg.what = msgType;
-    	msg.obj = tx;
-    	handler.dispatchMessage(msg);
-    }
-    
-    /**
-     * @hide
-     */
-    public String getActiveReceivers(){
-    	return getActiveList(CovertTransceiver.TYPE_RECEIVER);
-    }
-    
-    /**
-     * @hide
-     */
-    public String getActiveSenders(){
-    	return getActiveList(CovertTransceiver.TYPE_SENDER);
-    }
-    
-    
-    /**
-     * @hide
-     */
-    public boolean checkChannels(int[] chans){
-    	//Log.d(TAG, "Checking for channels");
-    	// Returns "true" if any of the the channels are currently active;
-    	for(int i = 0; i < chans.length; i++){
-    		// This is a little bit "hacky" but it works
-    		// because the ints defined in the GuardServiceHelper
-    		// happen to align nicely with the channelDefenseState arr
-    		int val = chans[i];
-    		if(val < 0 || val > GuardServiceHelper.CHAN_USER_GYRO){
-    			throw new IllegalArgumentException("Invalid channel int: " + val + "  Please use final static int values defined in GuardServiceHelper");
-    		}
-    		//Log.d(TAG, "Checking for channel number " + i + "  channel_ID: " + chans[i] + "  state: " + channelDefenseState[chans[i]]);
-    		if(channelDefenseState[chans[i]]){
-    			return true;
-    		}
-    	}
-    	return false;
-    }
-    
-    
-    private String getActiveList(int LIST_TYPE){
-    	if(LIST_TYPE == CovertTransceiver.TYPE_SENDER){
-    		return "Active Sender List[" + activeTx.size() +"]: " + activeTx;
-    	}
-    	else if(LIST_TYPE == CovertTransceiver.TYPE_RECEIVER){
-    		return "Active Receiver List[" + activeRx.size() +"]: " + activeRx;
-    	}
-    	else{
-    		throw new IllegalArgumentException("Invalid type: " + LIST_TYPE);
-    	}
-    	
-    }
-    
-    private static void removeInstances(ArrayList<? extends CovertTransceiver> l, CovertTransceiver trans){
-    	// Some assert statement about the objects in l 
-    	// matching the actual type of trans would probably
-    	// be prudent here
-    	
-    	for(int i = 0; i < l.size(); i++){
-    		CovertTransceiver item = (CovertTransceiver) l.get(i);
-    		if(item.lazyMatches(trans)){
-    			l.remove(i);
-    			i--;
-    		}
-    	}
-    }
-    
-    private void removeRxInstances(CovertReceiver rx){
-    	removeInstances(activeRx, (CovertTransceiver)rx);
-    }
-    
-    private void removeTxInstances(CovertSender tx){
-    	removeInstances(activeTx, (CovertTransceiver)tx);
-    }
-    
-  /**
-   * @hide 
-   */
-    public void clearList(int type){
-    	if(type == CovertTransceiver.TYPE_SENDER){
-    		clearTxList();
-    	}
-    	else if(type == CovertTransceiver.TYPE_RECEIVER){
-    		clearRxList();
-    	}
-    	else{
-    		throw new IllegalArgumentException("Invalid Type: " + type);
-    	}
-    	
-    	updateChannels();
-    }
-    
-    private void clearRxList(){
-    	activeRx = new ArrayList<CovertReceiver>();
-    }
-    
-    private void clearTxList(){
-    	activeTx = new ArrayList<CovertSender>();
-    }
-    
-    
-    /**
-     * 
-     * @param tag the new taint value to be added (bitwise OR)
-     * @param dev the ID of the device to store the taint value for
-     * @hide
-     */
-    public void combineTaint(int tag, CovertTransceiver trans){
-    	CovertTransceiver newTrans = null;
-    	switch(trans.getType()){
-    	case CovertTransceiver.TYPE_SENDER:
-    		newTrans = getActiveSender(trans.getDeviceID());
-    		break;
-    	case CovertTransceiver.TYPE_RECEIVER:
-    		newTrans = getActiveReceiver(trans.getDeviceID());
-    		break;
-    	}
 
-    	if(newTrans == null){
-    		Log.w(TAG, "Device (" + trans.getDeviceName() + ") is not active.  Cannot combine taint: " + tag);
-    		return;
-    	}
-    	newTrans.taint = (newTrans.taint | tag);
+    private void activeTxChangeMessage(CovertSender tx, int msgType){
+        Message msg = Message.obtain();
+        msg.what = msgType;
+        msg.obj = tx;
+        Log.i("activeTxChangeMessage", "1");
+        handler.dispatchMessage(msg);
+
+        // yytang
+        int index = tx.getDeviceID();
+        if(msgType == GuardServiceHelper.ADD_ACTIVE_TX){
+            if(tx.delay > 0) {
+                txDelayThread[index] = new execTxDelayThread(tx);
+                txDelayThread[index].start();
+            }
+            else
+                txDelayThread[index] = null;
+        }
+        else
+            txDelayThread[index] = null;
     }
+
+    private class execTxDelayThread extends Thread {
+        private long delay;
+        private int index;
+        private String deviceName;
+
+        public execTxDelayThread(CovertSender tx){
+            delay = tx.delay;
+            index = tx.getDeviceID();
+            deviceName = tx.getDeviceName();
+        }
+
+        public void run(){
+            Log.d(TAG, "execTxDelayThread Started");
+            Thread thisThread = Thread.currentThread();
+            try {
+                // we need to remove vibrator from active tx array after sleep
+                sleep(delay);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            Log.i(deviceName, "after sleep()");
+            // if no new thread is created
+            if(thisThread == txDelayThread[index]){
+                Message msg = Message.obtain();
+                msg.what = GuardServiceHelper.REMOVE_ACTIVE_TX;
+                msg.obj = new CovertSender(deviceName);
+                Log.d(deviceName, "remove device from tx array");
+                handler.dispatchMessage(msg);
+            }
+        }
+    }
+
+    
     
     /**
-     * 
-     * @param tag the new taint value for the device (replaces old value for device)
-     * @param dev the ID of the device to store the taint value for
-     * @hide
-     */
-    public void setTaint(int tag, CovertTransceiver trans){
-    	CovertTransceiver newTrans = null;
-    	
-    	switch(trans.getType()){
-    	case CovertTransceiver.TYPE_SENDER:
-    		newTrans = getActiveSender(trans.getDeviceID());
-    		break;
-    	
-    	case CovertTransceiver.TYPE_RECEIVER:
-    		newTrans = getActiveReceiver(trans.getDeviceID());
-    		break;
-    	}
-    	
-    	if(newTrans == null){
-    		Log.w(TAG, "Device (" + trans.getDeviceName() + ") is not active.  Cannot set taint: " + tag);
-    		return;
-    	}
-    	newTrans.taint = tag;
-    }
-    
-    /**
-     * 
-     * @param trans a dummy CovertTransceiver representing the device to retrieve the taint value of
-     * @return the taint value (as a short)
+     * @hide - yytang
      */
     public int getTaint(CovertTransceiver trans){
-    	
-    	CovertTransceiver newTrans = null;
-    	switch(trans.getType()){
-    	case CovertTransceiver.TYPE_RECEIVER:
-    		newTrans = getActiveReceiver(trans.getDeviceID());
-    		break;
-    		
-    	case CovertTransceiver.TYPE_SENDER:
-    		newTrans = getActiveSender(trans.getDeviceID());
-    		break;
-    	}
+        // find out the Tx for each deviceName
+        // check if Tx is in the activeTx array
+        // return the Tx ID of if covert channel is found, otherwise return -1
+        //
+        // We are concerned with five channels:
+        // 1.) Ultrasound
+        // 2.) Vib + Accel
+        // 3.) Speaker + Accel
+        // 4.) Flash + Cam
+        // 5.) User + Gryo
 
-    	if(newTrans == null){ 
-    		Log.w(TAG, "Selected device (" + trans.getDeviceName() + ") is not active, returning TAINT_CLEAR.");
-    		return Taint.TAINT_CLEAR;
-    	}
-    	else{ return newTrans.taint; }
-    }
-    
-    /**
-     * 
-     * @param time Time in ms until this Timer will fire.  Timer will wait at least this long.  If this is a bump, time will be added to the existing timer
-     * @param dev The device to be removed when the timer is fired.  This device uniquely identifies a timer
-     * @hide
-     */
-    public void setOrBumpTimer(long time, CovertTransceiver dev){
-    	GSTimer t;
-    	try{
-    		t = getTimer(dev);
-    		t.bumpDuration(time);
-    		Log.d(TAG, "setOrBumpTimer, adding: " + time + " ms to timer for: " + dev.getDeviceName());
-    	} catch (IllegalArgumentException e){
-    		Log.d(TAG, "setOrBumpTimer, Creating New GSTimer with " + time + "ms for: " + dev.getDeviceName());
-    		t = new GSTimer(time, dev);
-    		gsTimers.add(t);
-    	}
-    	startTimerHelper(t);
-    }
-    
-    /**
-     * 
-     * @param dev the device used to identify the timer
-     * @hide
-     */
-    public void startTimer(CovertTransceiver dev){
-    	GSTimer timer = getTimer(dev);
-    	startTimerHelper(timer);
-    }
-    
-    private void startTimerHelper(GSTimer timer){
-    	if(!timer.checkRunning()){
-    		timer.setRunning(true);
-    		Thread t = new Thread(timer);
-        	Log.d(TAG, "Started timer with " + timer.getTimeRemaining() + " ms left for dev: " + timer.dev.getDeviceName());
-    		t.start();
-    	}
-    }
-    
-    
-    private GSTimer getTimer(CovertTransceiver dev){
-    	GSTimer tmp = new GSTimer(-1, dev);
-    	for(int i = 0; i < gsTimers.size(); i++){
-    		if(gsTimers.get(i).equals(tmp)){
-    			return gsTimers.get(i);
-    		}
-    	}
-    	throw new IllegalArgumentException("No timer for device: " + dev);
-    }
-    
-    // Guard Service Timer
-    private class GSTimer implements Runnable{
-    	private final String TAG = GSTimer.class.getName();
-    	
-    	private long timeRemaining;
-    	private long lastCheckTS;
-    	private boolean running = false;
-    	private CovertTransceiver dev;
-    	
-    	public GSTimer(long newTimeRemaining, CovertTransceiver newDev){
-    		timeRemaining = newTimeRemaining;
-    		lastCheckTS = System.currentTimeMillis();
-    		dev = newDev;
-    	}
-    	
-    	@Override
-    	public void run(){
-    		Log.d(TAG, "GSTimer thread running");
-    		while(running){
-    			long nowTS = System.currentTimeMillis();
-    			long dur = (nowTS - lastCheckTS);
-    			lastCheckTS = nowTS;
-    			timeRemaining = timeRemaining - dur;
-    			if(timeRemaining <= 0){
-    				Log.d(TAG, "TIMER UP!");
-    				timeRemaining = 0;
-    				running = false;
-    				removeDev();
-    			}
-    		}
-    	}
-    	
-    	private void removeDev(){
-    		if(dev.getType() == CovertTransceiver.TYPE_SENDER){
-    			removeActiveTx(dev);
-    		}
-    		else if(dev.getType() == CovertTransceiver.TYPE_RECEIVER){
-    			removeActiveRx(dev);
-    		}
-    		else{
-    			throw new IllegalStateException("Invalid Type ID: " + dev.getType());
-    		}
-    		
-    	}
+		CovertReceiver rx = trans.toCovertReceiver();
 
-    	public void setRunning(boolean onoff){ running = onoff; }
-    	public boolean checkRunning(){ return running; }
-    	public long getTimeRemaining(){ return timeRemaining; }
-    	
-    	public void bumpDuration(long bumpTime){
-    		if(bumpTime < 0){
-    			throw new IllegalArgumentException("bumpDuration received negative bumpTime: " + bumpTime);
-    		}
-    		timeRemaining = (timeRemaining + bumpTime);
-    		Log.d(TAG, "Duration bumped.  Time remaining: " + timeRemaining);
-    	}
-    	
-    	public boolean equals(GSTimer other){ return this.dev.getDeviceID() == other.dev.getDeviceID(); }
-    	
+        int taint = 0;
+        CovertSender tx;
+        Log.d("isCovertPresent", "" + rx.getDeviceName());
+        // Speaker + Microphone
+        if(rx.getDeviceName().equalsIgnoreCase("microphone")){
+            taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
+        }
+
+        // Vib + Accel
+        if(rx.getDeviceName().equalsIgnoreCase("accelerometer")){
+            taint = taint | activeTx[CovertTransceiver.DEV_VIB].taint;
+        }
+
+        // Speaker + Accel
+        if(rx.getDeviceName().equalsIgnoreCase("accelerometer")){
+            taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
+        }
+
+        // Flash + Cam
+        if(rx.getDeviceName().equalsIgnoreCase("camera")){
+            taint = taint | activeTx[CovertTransceiver.DEV_FLASH].taint;
+        }
+
+        // User + Gryo
+        if(rx.getDeviceName().equalsIgnoreCase("Gyroscope")){
+            taint = taint | activeTx[CovertTransceiver.DEV_USER].taint;
+        }
+        if(taint != 0)
+            Log.i("getTaint", "Find covert channel");
+        else
+            Log.i("getTaint", "No covert channel");
+        return taint;
+    }
+
+
+
+
+
+
+    public String getActiveSenders(){
+        Log.i("getActiveSenders", "length = " + activeTx.length);
+        String s = "activeTx : ";
+        for(int i = 0; i < activeTx.length; i ++){
+            Log.i("getActiveSenders", "taint" + i + "=" + activeTx[i].taint);
+            if(activeTx[i].taint != 0)
+                s = s + activeTx[i].getDeviceName() + " ";
+        }
+        Log.i("getActiveSenders", "222");
+        Log.d(TAG, s);
+
+        return s;
     }
 }

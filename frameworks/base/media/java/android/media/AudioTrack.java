@@ -606,19 +606,26 @@ public class AudioTrack
     
     private void setPlayState(int newState){
     	mPlayState = newState;
-        CovertSender tx = new CovertSender(mInitializationLooper.toString(), GuardServiceHelper.DEV_SPKR);
+        CovertSender tx = new CovertSender("speaker");
     	
     	switch(mPlayState){
     		case PLAYSTATE_PLAYING:
+
+				if(mDataLoadMode == MODE_STATIC)
+				{
+					// we need assign estimated time to tx.delay 
+					tx.delay = 3000; 
+				}
     	        GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
     	        		tx, GuardServiceHelper.ADD_ACTIVE_TX);
-    	        
-    	        if(mDataLoadMode == MODE_STATIC){
-    	        	// For MODE_STATIC the timer should have been created and set
-    	        	// in the write byte[] or write short[] methods
-    	        	CovertSender rx = new CovertSender("unknown component", GuardServiceHelper.DEV_SPKR);
-    	        	GuardServiceHelper.remoteExcProtectedStartTimer(rx);
-    	        }
+    	        /*
+		    	        if(mDataLoadMode == MODE_STATIC){
+		    	        	// For MODE_STATIC the timer should have been created and set
+		    	        	// in the write byte[] or write short[] methods
+		    	        	CovertSender rx = new CovertSender("unknown component", GuardServiceHelper.DEV_SPKR);
+		    	        	GuardServiceHelper.remoteExcProtectedStartTimer(rx);
+		    	        }
+    	        */
     			break;
     			
     	
@@ -1036,7 +1043,8 @@ public class AudioTrack
         
         
         // Added by Ed Novak from GuardServer
-    	CovertSender tx = new CovertSender("unknown component", GuardServiceHelper.DEV_SPKR);
+        /*
+    	CovertSender tx = new CovertSender(GuardServiceHelper.DEV_SPKR);
     	long dur = ((long)(( (ret/2.0) / (float)mSampleRate) * 1000)); // Not sure about this
     	GuardServiceHelper.remoteExcProtectedSetOrBumpTimer(dur, tx);
         
@@ -1046,7 +1054,9 @@ public class AudioTrack
         
         
         int taint = Taint.getTaintByteArray(audioData);
+		
         GuardServiceHelper.remoteExcProtectedCombineTaint(taint, tx);
+        */
         // End of GuardServer addition
         
         
@@ -1093,7 +1103,8 @@ public class AudioTrack
         int ret = native_write_short(audioData, offsetInShorts, sizeInShorts, mAudioFormat);
         
         // Added by Ed Novak from GuardServer
-    	CovertSender tx = new CovertSender("unknown component", GuardServiceHelper.DEV_SPKR);
+        /*
+    	CovertSender tx = new CovertSender(GuardServiceHelper.DEV_SPKR);
     	long dur = ((long)((ret / (float)mSampleRate) * 1000)); // Not sure about this
     	GuardServiceHelper.remoteExcProtectedSetOrBumpTimer(dur, tx);
         
@@ -1103,7 +1114,9 @@ public class AudioTrack
         
         
         int taint = Taint.getTaintShortArray(audioData);
+		// yytang
         GuardServiceHelper.remoteExcProtectedCombineTaint(taint, tx);
+		*/
         // End of GuardServer addition
 
         if ((mDataLoadMode == MODE_STATIC)

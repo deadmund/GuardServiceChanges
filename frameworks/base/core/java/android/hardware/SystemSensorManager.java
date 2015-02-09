@@ -120,11 +120,12 @@ public class SystemSensorManager extends SensorManager {
         
         synchronized (mSensorListeners) {
             SensorEventQueue queue = mSensorListeners.get(listener);
-            
-            CovertReceiver rx = new CovertReceiver(listener.toString(), sensor.getName());
-            GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
-            		rx, GuardServiceHelper.ADD_ACTIVE_RX);
-            
+            /* ednovak - begin */
+            //CovertReceiver rx = new CovertReceiver(sensor.getName());
+			// yytang
+           // GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
+            	//	rx, GuardServiceHelper.ADD_ACTIVE_RX);
+            /* ednovak - begin */
             if (queue == null) {
                 Looper looper = (handler != null) ? handler.getLooper() : mMainLooper;
                 queue = new SensorEventQueue(listener, looper, this);
@@ -163,11 +164,13 @@ public class SystemSensorManager extends SensorManager {
                     result = queue.removeSensor(sensor, true);
                     name = sensor.getName();
                 }
-                
-                CovertReceiver rx = new CovertReceiver(listener.toString(), name);
-                GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
-                		rx, GuardServiceHelper.REMOVE_ACTIVE_RX);
-                
+				
+                /* ednovak - begin */
+               // CovertReceiver rx = new CovertReceiver(name);
+                //GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
+                	//	rx, GuardServiceHelper.REMOVE_ACTIVE_RX);
+                /* ednovak - end */
+				
                 if (result && !queue.hasSensors()) {
                     mSensorListeners.remove(listener);
                     queue.dispose();
@@ -476,39 +479,30 @@ public class SystemSensorManager extends SensorManager {
     
     private static void applyTaint(Sensor s, float[] values){
     	// begin WITH_TAINT_TRACKING
-        if(s != null){
-        	
-
-        	int taint = Taint.TAINT_CLEAR;
+    	
+        if(s != null){    	
+        	int tag = Taint.TAINT_CLEAR;
+			IGuardService igs = GuardServiceHelper.getIGSInstance();
+			CovertReceiver rx;
+			
         	if(s.getType() == Sensor.TYPE_ACCELEROMETER){
-        		taint = (short)(taint | Taint.TAINT_ACCELEROMETER);
+        		tag = (tag | Taint.TAINT_ACCELEROMETER);
+				
+				rx = new CovertReceiver("Accelerometer");
+				Log.i("applyTaintHelper", "begin");
+				tag = tag | GuardServiceHelper.getIGSTaint(igs, rx);
+				Log.i("applyTaintHelper", "tag = " + tag);
         	}
         	else if (s.getType() == Sensor.TYPE_GYROSCOPE){
         		// Not implemented yet!  there is not Taint.TAINT_GYROSCOPE
         	}
-        	
-            int[] chans = {GuardServiceHelper.CHAN_SPKR_ACCEL,
-            		GuardServiceHelper.CHAN_VIB_ACCEL,
-            		GuardServiceHelper.CHAN_USER_GYRO};
-            IGuardService igs = GuardServiceHelper.getIGSInstance();
-        	boolean res = GuardServiceHelper.remoteExcProtectedCheckChannels(igs,  chans);
-        	if(res){ // additional check with GuardService because one of these channels is active
-        		
-        		// Figure out and apply taint from sender(s)
-        		for(int i = 0; i < chans.length; i++){
-        			int senderID = GuardServiceHelper.getSenderIDFromChan(chans[i]);
-        			Log.d(TAG, "Channel: " + chans[i] + " => sender device ID: " + senderID);
-        			CovertTransceiver trans = new CovertTransceiver("unknown", senderID, CovertTransceiver.TYPE_SENDER);
-        			taint = (taint | GuardServiceHelper.remoteExcProtectedGetTaint(trans));
-        		}
-        		Log.d(TAG, "Tainting Sensor data with: " + taint);
-        		
-        		// Only taint the actual data (not even timestamps)
-        		Taint.addTaintFloatArray(values,  taint);
-                //Taint.addTaintLongArray(timestamp, tag);
-                //Taint.addTaintInt(accuracy, tag);
-	        }//if
+
+			if (tag != Taint.TAINT_CLEAR) {
+				Taint.addTaintFloatArray(values, tag);
+				//Taint.addTaintLongArray(timestamp, tag);
+				//accuracy = Taint.addTaintInt(accuracy, tag);
+            }	        
         // end WITH_TAINT_TRACKING
-        }
+        }        
     }
 }

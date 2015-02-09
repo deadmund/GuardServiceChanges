@@ -8,18 +8,7 @@ package android.os;
 import net.ednovak.Transceiver.CovertTransceiver;
 
 
-interface IGuardService {
-	
-	
-	/**
-	*@hide
-	*/
-	void addActiveRx(in CovertTransceiver trans);
-	
-	/**
-	*@hide
-	*/
-	void removeActiveRx(in CovertTransceiver trans);
+interface IGuardService {	
 	
 	/**
 	*@hide
@@ -34,42 +23,7 @@ interface IGuardService {
 	/**
 	*@hide
 	*/
-	String getActiveReceivers();
-	
-	/**
-	*@hide
-	*/
 	String getActiveSenders();
-	
-	/**
-	*@hide
-	*/
-	void clearList(int type);
-	
-	/**
-	*@hide
-	*/
-	boolean checkChannels(in int[] chans);
-	
-	/**
-	*@hide
-	*/    
-	void setOrBumpTimer(long time, in CovertTransceiver dev);
-	
-	/**
-	*@hide
-	*/
-	void startTimer(in CovertTransceiver dev);
-	
-	/**
-	*@hide
-	*/
-	void combineTaint(int tag, in CovertTransceiver trans);
-	
-	/**
-	*@hide
-	*/
-	void setTaint(int tag, in CovertTransceiver trans);
 	
 	/**
 	*@hide

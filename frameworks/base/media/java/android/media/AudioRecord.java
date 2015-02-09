@@ -432,7 +432,7 @@ public class AudioRecord
     public void setRecordingState(int newState){
     	mRecordingState = newState;
     	
-    	
+    	/*
         CovertReceiver rx = new CovertReceiver(GuardServiceHelper.getPkgHack(), "microphone");
 	
     	switch(mRecordingState){
@@ -447,6 +447,7 @@ public class AudioRecord
     	        		rx, GuardServiceHelper.REMOVE_ACTIVE_RX);
     			break;
     	}
+    	*/
     	
     }
     
@@ -705,10 +706,20 @@ public class AudioRecord
     }
     
     private int applyTaintHelper(){
+		int taint = Taint.TAINT_MIC;
+		IGuardService igs = GuardServiceHelper.getIGSInstance();
+		CovertReceiver rx = new CovertReceiver("microphone");
+		Log.i("applyTaintHelper", "begin");
+		taint = taint | GuardServiceHelper.getIGSTaint(igs, rx);
+		Log.i("applyTaintHelper", "taint = " + taint);
+
+		
+		/* commened by yytang
     	int taint = Taint.TAINT_MIC;
     	
     	int[] chans = {GuardServiceHelper.CHAN_ULTRASOUND};
     	IGuardService igs = GuardServiceHelper.getIGSInstance();
+		
     	boolean res = GuardServiceHelper.remoteExcProtectedCheckChannels(igs,  chans);
     	if(res){
     		int senderID = GuardServiceHelper.getSenderIDFromChan(chans[0]);
@@ -716,6 +727,7 @@ public class AudioRecord
 			CovertTransceiver trans = new CovertTransceiver("unknown", senderID, CovertTransceiver.TYPE_SENDER);
 			taint = (taint | GuardServiceHelper.remoteExcProtectedGetTaint(trans));
     	}
+    	*/
     	Log.d(TAG, "Tainting Microphone data with tag: " + taint);
 		return taint;
     }

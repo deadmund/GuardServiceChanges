@@ -387,12 +387,14 @@ class ServerThread extends Thread {
             //
             
             // Added by EdNovak for opportune data collector service
+            /*
             try{
             	Slog.i(TAG, "Opportune");
             	ServiceManager.addService("Opportune",  new Opportune(context));
             } catch (Throwable e){
             	Slog.e(TAG, "Failed starting Opportune Server", e);
             }
+            */
             //
         }
 

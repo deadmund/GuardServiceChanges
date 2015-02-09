@@ -354,9 +354,10 @@ public class Camera {
         native_setup(new WeakReference<Camera>(this), cameraId, packageName);
         
         // Guard Service Stuff
-        CovertReceiver rx = new CovertReceiver(packageName, "camera");
-        GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
-        		rx, GuardServiceHelper.ADD_ACTIVE_RX);
+        CovertReceiver rx = new CovertReceiver("camera");
+		// yytang
+       // GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
+        //		rx, GuardServiceHelper.ADD_ACTIVE_RX);
         //ct = new CameraTimer(500);
     }
 
@@ -383,9 +384,10 @@ public class Camera {
      */
     public final void release() {
     	String packageName = ActivityThread.currentPackageName();
-        CovertReceiver rx = new CovertReceiver(packageName, "camera");
-        GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
-        		rx, GuardServiceHelper.REMOVE_ACTIVE_RX);
+        CovertReceiver rx = new CovertReceiver("camera");
+		// yytang
+        //GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
+        //		rx, GuardServiceHelper.REMOVE_ACTIVE_RX);
         
         native_release();
         mFaceDetectionRunning = false;

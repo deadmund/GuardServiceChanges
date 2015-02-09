@@ -23,6 +23,8 @@ import java.util.ListIterator;
 import net.ednovak.GuardServiceHelper;
 import net.ednovak.Transceiver.CovertSender;
 import net.ednovak.Transceiver.CovertTransceiver;
+import dalvik.system.Taint;
+
 import android.app.AppOpsManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -488,7 +490,9 @@ public class VibratorService extends IVibratorService.Stub
             	
             	// Added for guard service
             	IGuardService igs = GuardServiceHelper.getIGSInstance();
-            	CovertTransceiver vib = (CovertTransceiver)new CovertSender(mCurrentVibration.mPackageName, GuardServiceHelper.DEV_VIB);
+            	CovertTransceiver vib = (CovertTransceiver)new CovertSender(CovertTransceiver.DEV_VIB);
+				vib.delay = millis;
+				vib.taint = Taint.getTaintLong(millis);
             	GuardServiceHelper.remoteExcProtectedActiveChange(igs, vib, GuardServiceHelper.ADD_ACTIVE_TX);
             	
             	// Because the blow method takes a millis arg, I may need to also
@@ -524,7 +528,7 @@ public class VibratorService extends IVibratorService.Stub
             	if(mCurrentVibration != null){
             		pkg = mCurrentVibration.mPackageName;
             	}
-            	CovertTransceiver vib = (CovertTransceiver)new CovertSender(pkg, CovertTransceiver.DEV_VIB);
+            	CovertTransceiver vib = (CovertTransceiver)new CovertSender(CovertTransceiver.DEV_VIB);
             	GuardServiceHelper.remoteExcProtectedActiveChange(igs, vib, GuardServiceHelper.REMOVE_ACTIVE_TX);
             	
             	// Native method

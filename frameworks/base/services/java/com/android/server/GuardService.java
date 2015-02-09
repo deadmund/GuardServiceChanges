@@ -20,6 +20,7 @@ import android.widget.Toast;
 
 public class GuardService extends IGuardService.Stub{
     private static final String TAG = GuardService.class.getName();
+    private boolean running = true;
     private Context ctx;
     private Thread t;
     private Handler handler;
@@ -272,5 +273,24 @@ public class GuardService extends IGuardService.Stub{
         Log.d(TAG, s);
 
         return s;
+    }
+    
+    /**
+     * @hide
+     * @return tells whether or not the GuardService is running
+     * The service is actually always running, but this variable
+     * will be checked in the various data delivery methods (such as dispatchSensorEvent)
+     * so we can do time profiling with / without the service running easily
+     */
+    public boolean isRunning(){
+    	return running;
+    }
+    
+    /**
+     * @hide
+     * @param see isRunning() for more details
+     */
+    public void setRunning(boolean newVal){
+    	running = newVal;
     }
 }

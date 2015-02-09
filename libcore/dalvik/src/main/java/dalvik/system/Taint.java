@@ -20,6 +20,7 @@
 package dalvik.system;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 /**
  * Provides a Taint interface for the Dalvik VM. This class is used for
@@ -52,8 +53,95 @@ public final class Taint {
     public static final int TAINT_FLASH         = 0x00040000;
     public static final int TAINT_USER          = 0x00080000;
     
+    public static final int TAINT_MAX			= 0x80000000;
+    // I (Ed) did a simple experiment (code not shown) and learned that we can use all 32 bits
+    // of the integer to store taint values.  That means the largest taint tag we can use is:
+    // public static final int TAINT_MAX = 0x80000000; 
+    // Assuming an unsigned integer, it can be converted to decimal as 2147483648 
+    // It's the largest valid signed integer + 1, i.e. the bit that says the int is negative if it's a signed int
+    
     // how many bytes of tainted network output data to print to log?
     public static final int dataBytesToLog = 100;
+    
+    
+    
+    // Provides a simple method to bring the TAG string value (semantic) given the numeric value
+    public static ArrayList<String> toString(int tag){
+
+    	ArrayList<String> ans = new ArrayList<String>();
+    	
+    	if(tag == TAINT_CLEAR){
+    		ans.add("Clear");
+    		return ans; // Because if the taint is clear, there are not tags at all;
+    	}
+    	if((tag & TAINT_LOCATION) == TAINT_LOCATION){
+    		ans.add("Location");
+    	}
+    	if((tag & TAINT_CONTACTS) == TAINT_CONTACTS){
+    		ans.add("Contacts");
+    	}
+    	if((tag & TAINT_MIC) == TAINT_MIC){
+    		ans.add("Microphone");
+    	}
+    	if((tag & TAINT_PHONE_NUMBER) == TAINT_PHONE_NUMBER){
+    		ans.add("Phone Number");
+    	}
+    	if((tag & TAINT_LOCATION_GPS) == TAINT_LOCATION_GPS){
+    		ans.add("GPS");
+    	}
+    	if((tag & TAINT_LOCATION_NET) == TAINT_LOCATION_NET){
+    		ans.add("Vague Location");
+    	}
+    	if((tag & TAINT_LOCATION_LAST) == TAINT_LOCATION_LAST){
+    		ans.add("Last Known Location");
+    	}
+    	if((tag & TAINT_CAMERA) == TAINT_CAMERA){
+    		ans.add("Camera");
+    	}
+    	if((tag & TAINT_ACCELEROMETER) == TAINT_ACCELEROMETER){
+    		ans.add("Accelerometer");
+    	}
+    	if((tag & TAINT_SMS) == TAINT_SMS){
+    		ans.add("SMS");
+    	}
+    	if((tag & TAINT_IMEI) == TAINT_IMEI){
+    		ans.add("IMEI");
+    	}
+    	if((tag & TAINT_IMSI) == TAINT_IMSI){
+    		ans.add("IMSI");
+    	}
+    	if((tag & TAINT_ICCID) == TAINT_ICCID){
+    		ans.add("ICCID");
+    	}
+    	if((tag & TAINT_DEVICE_SN) == TAINT_DEVICE_SN){
+    		ans.add("Device SN");
+    	}
+    	if((tag & TAINT_ACCOUNT) == TAINT_ACCOUNT){
+    		ans.add("Account");
+    	}
+    	if((tag & TAINT_HISTORY) == TAINT_HISTORY){
+    		ans.add("History");
+    	}
+
+    	// New / Custom Taint tags
+    	if((tag & TAINT_SPKR) == TAINT_SPKR){
+    		ans.add("Speaker");
+    	}
+    	if((tag & TAINT_VIB) == TAINT_VIB){
+    		ans.add("Vibration");
+    	}
+    	if((tag & TAINT_FLASH) == TAINT_FLASH){
+    		ans.add("Flash");
+    	}
+    	if((tag & TAINT_USER) == TAINT_USER){
+    		ans.add("User");
+    	}
+    	
+    	
+    	return ans;
+    	
+    	
+    }
 
     /**
      * Updates the target String's taint tag.

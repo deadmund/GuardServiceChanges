@@ -24,12 +24,12 @@ import java.util.List;
 
 import net.ednovak.GuardServiceHelper;
 import net.ednovak.Transceiver.CovertReceiver;
-import net.ednovak.Transceiver.CovertTransceiver;
 import android.content.Context;
 import android.os.Handler;
 import android.os.IGuardService;
 import android.os.Looper;
 import android.os.MessageQueue;
+import android.os.RemoteException;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -377,6 +377,7 @@ public class SystemSensorManager extends SensorManager {
                 Log.e(TAG, "Error: Sensor Event is null for Sensor: " + sensor);
                 return;
             }
+            long start = System.currentTimeMillis();
 
             // begin WITH_TAINT_TRACKING
             applyTaint(t.sensor, values);
@@ -409,6 +410,8 @@ public class SystemSensorManager extends SensorManager {
             }
 
             mListener.onSensorChanged(t);
+            long end = System.currentTimeMillis();
+            Log.i("dispatchSensorEvent finished: ", end-start + "ms");
         }
         
         private boolean writeToFile(String filename, String msg){
@@ -457,6 +460,7 @@ public class SystemSensorManager extends SensorManager {
                 Log.e(TAG, "Error: Trigger Event is null for Sensor: " + sensor);
                 return;
             }
+            long start = System.currentTimeMillis();
 
             // begin WITH_TAINT_TRACKING
             applyTaint(t.sensor, values);
@@ -473,16 +477,26 @@ public class SystemSensorManager extends SensorManager {
             mManager.cancelTriggerSensorImpl(mListener, sensor, false);
 
             mListener.onTrigger(t);
+            
+            long end = System.currentTimeMillis();
+            Log.i("dispatchSensorEvent finished: ", end-start + "ms");
         }
     }
     
     
     private static void applyTaint(Sensor s, float[] values){
     	// begin WITH_TAINT_TRACKING
+    	IGuardService igs = GuardServiceHelper.getIGSInstance();
+    	try{
+	    	if(!igs.isRunning()){
+	    		return;
+	    	}
+    	} catch (RemoteException e){
+    		Log.d(TAG, "IGS Remote Exception");
+    	}
     	
         if(s != null){    	
         	int tag = Taint.TAINT_CLEAR;
-			IGuardService igs = GuardServiceHelper.getIGSInstance();
 			CovertReceiver rx;
 			
         	if(s.getType() == Sensor.TYPE_ACCELEROMETER){
@@ -491,7 +505,7 @@ public class SystemSensorManager extends SensorManager {
 				rx = new CovertReceiver("Accelerometer");
 				Log.i("applyTaintHelper", "begin");
 				tag = tag | GuardServiceHelper.getIGSTaint(igs, rx);
-				Log.i("applyTaintHelper", "tag = " + tag);
+				Log.i("applyTaintHelper", "tag = " + tag + ": " + Taint.toString(tag));
         	}
         	else if (s.getType() == Sensor.TYPE_GYROSCOPE){
         		// Not implemented yet!  there is not Taint.TAINT_GYROSCOPE

@@ -29,5 +29,10 @@ interface IGuardService {
 	*@hide
 	*/
 	int getTaint(in CovertTransceiver trans);
+	
+	/**
+	*@hide
+	*/
+	boolean isRunning();
 
 }

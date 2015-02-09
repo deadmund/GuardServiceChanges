@@ -14,11 +14,13 @@ else:
 		print("AOSP_ROOT environment variable undefined\nIt is recommended to put 'export AOSP_ROOT=\"</some/path/>\"' in your .bashrc")
 		os.environ['AOSP_ROOT'] = raw_input("Temporarily Set AOSP_ROOT:")
 
-
+skip_names = ["replace", "replace.py"]
+exclude = [".git"]
 for p, subdirs, files in os.walk('./'):
+	subdirs[:] = [d for d in subdirs if d not in exclude]
 	for fname in files:
 
-		if fname == "replace":
+		if fname in skip_names:
 			print("Skipping " + fname)
 			continue
 
@@ -43,8 +45,8 @@ for p, subdirs, files in os.walk('./'):
 		print("Creating link " + orig + " => " + new_file)
 		try:
 			os.symlink(new_file, orig)
-		except OSError:
-			print("Couldn't create symlink: " + orig + " => " + new_file)
+		except OSError as e:
+			print("Couldn't create symlink: " + e.strerror)
 
-
+		print("");
 		#print (fname + " : " + os.path.abspath(os.path.join(p,fname)))

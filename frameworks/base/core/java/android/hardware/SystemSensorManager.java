@@ -503,9 +503,7 @@ public class SystemSensorManager extends SensorManager {
         		tag = (tag | Taint.TAINT_ACCELEROMETER);
 				
 				rx = new CovertReceiver("Accelerometer");
-				Log.i("applyTaintHelper", "begin");
 				tag = tag | GuardServiceHelper.getIGSTaint(igs, rx);
-				Log.i("applyTaintHelper", "tag = " + tag + ": " + Taint.toString(tag));
         	}
         	else if (s.getType() == Sensor.TYPE_GYROSCOPE){
         		// Not implemented yet!  there is not Taint.TAINT_GYROSCOPE

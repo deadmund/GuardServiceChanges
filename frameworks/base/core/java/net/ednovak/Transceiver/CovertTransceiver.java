@@ -17,6 +17,7 @@ public class CovertTransceiver implements Parcelable {
     public long delay; // yytang
 	// Should use the taint values defined in the TAINT class
 	public int taint = Taint.TAINT_CLEAR;
+	public boolean flag = false;
     
 
     public static final int COVERT_NUMS = 4;
@@ -177,6 +178,7 @@ public class CovertTransceiver implements Parcelable {
 		CovertSender tx = new CovertSender(this.deviceName);
         tx.delay = this.delay;
         tx.taint = this.taint;
+		tx.flag = this.flag;
 		return tx;
 	}
 	

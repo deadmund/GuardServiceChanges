@@ -24,6 +24,7 @@ import net.ednovak.GuardServiceHelper;
 import net.ednovak.Transceiver.CovertSender;
 import net.ednovak.Transceiver.CovertTransceiver;
 import dalvik.system.Taint;
+import android.os.IGuardService;
 
 import android.app.AppOpsManager;
 import android.content.BroadcastReceiver;
@@ -36,7 +37,7 @@ import android.hardware.input.InputManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.IGuardService;
+
 import android.os.IVibratorService;
 import android.os.PowerManager;
 import android.os.Process;

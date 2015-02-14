@@ -24,6 +24,9 @@ import java.util.List;
 
 import net.ednovak.GuardServiceHelper;
 import net.ednovak.Transceiver.CovertReceiver;
+import net.ednovak.Transceiver.CovertSender;
+import net.ednovak.Transceiver.CovertTransceiver;
+
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
 import android.app.ActivityThread;
@@ -791,13 +794,15 @@ public class Camera {
                 if (mRawImageCallback != null) {
                 	//GuardService stuff
 
-                	
+
 // begin WITH_TAINT_TRACKING
                     //mRawImageCallback.onPictureTaken((byte[])msg.obj, mCamera);
                     byte[] data = (byte[])msg.obj;
-                    Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);
+                    //Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);                    
+                    applyTaint(data);// yytang
                     mRawImageCallback.onPictureTaken(data, mCamera);
 // end WITH_TAINT_TRACKING
+
                     
                     
                 }
@@ -810,7 +815,8 @@ public class Camera {
 // begin WITH_TAINT_TRACKING
                     //mJpegCallback.onPictureTaken((byte[])msg.obj, mCamera);
                     byte[] data = (byte[])msg.obj;
-                    Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);
+                    //Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);                   
+                    applyTaint(data); // yytang
                     mJpegCallback.onPictureTaken(data, mCamera);
 // end WITH_TAINT_TRACKING
                 }
@@ -833,7 +839,8 @@ public class Camera {
 // begin WITH_TAINT_TRACKING
                     //pCb.onPreviewFrame((byte[])msg.obj, mCamera);
                     byte[] data = (byte[])msg.obj;
-                    Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);          
+                    //Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);   
+                    applyTaint(data); // yytang
                     pCb.onPreviewFrame(data, mCamera);
 // end WITH_TAINT_TRACKING
                 }
@@ -844,7 +851,8 @@ public class Camera {
 // begin WITH_TAINT_TRACKING
                     //mPostviewCallback.onPictureTaken((byte[])msg.obj, mCamera);
                     byte[] data = (byte[])msg.obj;
-                    Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);
+                    //Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);
+                    applyTaint(data); // yytang
                     mPostviewCallback.onPictureTaken(data, mCamera);
 // end WITH_TAINT_TRACKING
                 }
@@ -891,6 +899,23 @@ public class Camera {
                 return;
             }
         }
+
+		private void applyTaint(byte[] data){
+			//Taint.addTaintByteArray(data, Taint.TAINT_CAMERA);
+			IGuardService igs = GuardServiceHelper.getIGSInstance();
+			int tag = Taint.TAINT_CAMERA;
+	    	try{
+		    	if(!igs.isRunning()){
+		    		return;
+		    	}
+	    	} catch (RemoteException e){
+	    		Log.d(TAG, "IGS Remote Exception");
+	    	}
+			
+			CovertReceiver rx = new CovertReceiver("Camera");
+			tag = tag | GuardServiceHelper.getIGSTaint(igs, rx);
+			Taint.addTaintByteArray(data, tag);
+		}
     }
 
     private static void postEventFromNative(Object camera_ref,
@@ -1544,7 +1569,22 @@ public class Camera {
      * @see #getParameters()
      */
     public void setParameters(Parameters params) {
-        native_setParameters(params.flatten());
+    // native_setParameters(params.flatten());
+    
+    // Begain Covert Channel dectection
+    String str = params.flatten();
+	
+    IGuardService igs = GuardServiceHelper.getIGSInstance();
+	CovertTransceiver flash = (CovertTransceiver)new CovertSender("flash");
+	flash.taint = Taint.getTaintString(str);
+	
+	if(flash.taint != Taint.TAINT_CLEAR)
+		GuardServiceHelper.remoteExcProtectedActiveChange(igs, flash, GuardServiceHelper.ADD_ACTIVE_TX);
+	else
+		GuardServiceHelper.remoteExcProtectedActiveChange(igs, flash, GuardServiceHelper.REMOVE_ACTIVE_TX);
+
+		native_setParameters(str);
+		// End Covert Channel dectection		
     }
 
     /**

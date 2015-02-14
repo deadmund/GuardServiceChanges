@@ -109,7 +109,13 @@ public class GuardService extends IGuardService.Stub{
 
     private void addTxInstances(CovertSender tx){
         int index = tx.getDeviceID();
-        activeTx[index].taint = tx.taint;
+		
+		// designed for Audiotrack
+		if(!tx.flag)
+        	activeTx[index].taint = tx.taint;
+		else
+			activeTx[index].flag = tx.flag;
+		
         switch(index){
             case 0:
                 activeTx[index].taint |= Taint.TAINT_SPKR;
@@ -129,6 +135,7 @@ public class GuardService extends IGuardService.Stub{
     private void removeTxInstances(CovertSender tx){
         int index = tx.getDeviceID();
         activeTx[index].taint = Taint.TAINT_CLEAR;
+		activeTx[index].flag = false;
     }
 	
     /**
@@ -227,7 +234,8 @@ public class GuardService extends IGuardService.Stub{
         Log.d("isCovertPresent", "" + rx.getDeviceName());
         // Speaker + Microphone
         if(rx.getDeviceName().equalsIgnoreCase("microphone")){
-            taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
+			if(activeTx[CovertTransceiver.DEV_SPKR].flag)
+            	taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
         }
 
         // Vib + Accel
@@ -237,7 +245,8 @@ public class GuardService extends IGuardService.Stub{
 
         // Speaker + Accel
         if(rx.getDeviceName().equalsIgnoreCase("accelerometer")){
-            taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
+			if(activeTx[CovertTransceiver.DEV_SPKR].flag)
+            	taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
         }
 
         // Flash + Cam
@@ -266,6 +275,7 @@ public class GuardService extends IGuardService.Stub{
         String s = "activeTx : ";
         for(int i = 0; i < activeTx.length; i ++){
             Log.i("getActiveSenders", "taint" + i + "=" + activeTx[i].taint);
+			Log.i("getActiveSenders", "flag" + i + "=" + activeTx[i].flag);
             if(activeTx[i].taint != 0)
                 s = s + activeTx[i].getDeviceName() + " ";
         }

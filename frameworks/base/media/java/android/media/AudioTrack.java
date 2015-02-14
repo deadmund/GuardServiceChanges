@@ -22,6 +22,10 @@ import dalvik.system.Taint;
 
 import net.ednovak.GuardServiceHelper;
 import net.ednovak.Transceiver.CovertSender;
+import net.ednovak.Transceiver.CovertTransceiver;
+import dalvik.system.Taint;
+import android.os.IGuardService;
+
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -614,8 +618,9 @@ public class AudioTrack
 				if(mDataLoadMode == MODE_STATIC)
 				{
 					// we need assign estimated time to tx.delay 
-					tx.delay = 3000; 
+					tx.delay = 2000; 
 				}
+				tx.flag = true;
     	        GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
     	        		tx, GuardServiceHelper.ADD_ACTIVE_TX);
     	        /*
@@ -1038,6 +1043,18 @@ public class AudioTrack
             return ERROR_BAD_VALUE;
         }
 
+		
+		// Begain Covert Channel dectection
+			IGuardService igs = GuardServiceHelper.getIGSInstance();
+			CovertTransceiver speaker = (CovertTransceiver)new CovertSender("speaker");
+			speaker.taint = Taint.getTaintByteArray(audioData);
+			speaker.taint |= Taint.getTaintInt(offsetInBytes);
+			speaker.taint |= Taint.getTaintInt(sizeInBytes);
+			
+			if(speaker.taint != Taint.TAINT_CLEAR)
+				GuardServiceHelper.remoteExcProtectedActiveChange(igs, speaker, GuardServiceHelper.ADD_ACTIVE_TX);
+		// End Covert Channel dectection
+		
         int ret = native_write_byte(audioData, offsetInBytes, sizeInBytes, mAudioFormat);
         
         
@@ -1099,6 +1116,17 @@ public class AudioTrack
                 || (offsetInShorts + sizeInShorts > audioData.length)) {
             return ERROR_BAD_VALUE;
         }
+
+		// Begain Covert Channel dectection
+		IGuardService igs = GuardServiceHelper.getIGSInstance();
+		CovertTransceiver speaker = (CovertTransceiver)new CovertSender("speaker");
+		speaker.taint = Taint.getTaintShortArray(audioData);
+		speaker.taint |= Taint.getTaintInt(offsetInShorts);
+		speaker.taint |= Taint.getTaintInt(sizeInShorts);
+		
+		if(speaker.taint != Taint.TAINT_CLEAR)
+			GuardServiceHelper.remoteExcProtectedActiveChange(igs, speaker, GuardServiceHelper.ADD_ACTIVE_TX);
+		// End Covert Channel dectection
 
         int ret = native_write_short(audioData, offsetInShorts, sizeInShorts, mAudioFormat);
         

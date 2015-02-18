@@ -109,13 +109,11 @@ public class GuardService extends IGuardService.Stub{
 
     private void addTxInstances(CovertSender tx){
         int index = tx.getDeviceID();
-		
 		// designed for Audiotrack
-		if(!tx.flag)
+		if(tx.flag == 0)
         	activeTx[index].taint = tx.taint;
 		else
 			activeTx[index].flag = tx.flag;
-		
         switch(index){
             case 0:
                 activeTx[index].taint |= Taint.TAINT_SPKR;
@@ -135,7 +133,7 @@ public class GuardService extends IGuardService.Stub{
     private void removeTxInstances(CovertSender tx){
         int index = tx.getDeviceID();
         activeTx[index].taint = Taint.TAINT_CLEAR;
-		activeTx[index].flag = false;
+		activeTx[index].flag = 0;
     }
 	
     /**
@@ -160,7 +158,6 @@ public class GuardService extends IGuardService.Stub{
         Message msg = Message.obtain();
         msg.what = msgType;
         msg.obj = tx;
-        Log.i("activeTxChangeMessage", "1");
         handler.dispatchMessage(msg);
 
         // yytang
@@ -234,7 +231,7 @@ public class GuardService extends IGuardService.Stub{
         Log.d("isCovertPresent", "" + rx.getDeviceName());
         // Speaker + Microphone
         if(rx.getDeviceName().equalsIgnoreCase("microphone")){
-			if(activeTx[CovertTransceiver.DEV_SPKR].flag)
+			if(activeTx[CovertTransceiver.DEV_SPKR].flag != 0)
             	taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
         }
 
@@ -245,7 +242,7 @@ public class GuardService extends IGuardService.Stub{
 
         // Speaker + Accel
         if(rx.getDeviceName().equalsIgnoreCase("accelerometer")){
-			if(activeTx[CovertTransceiver.DEV_SPKR].flag)
+			if(activeTx[CovertTransceiver.DEV_SPKR].flag != 0)
             	taint = taint | activeTx[CovertTransceiver.DEV_SPKR].taint;
         }
 
@@ -258,10 +255,12 @@ public class GuardService extends IGuardService.Stub{
         if(rx.getDeviceName().equalsIgnoreCase("Gyroscope")){
             taint = taint | activeTx[CovertTransceiver.DEV_USER].taint;
         }
+		/*
         if(taint != 0)
             Log.i("getTaint", "Find covert channel");
         else
             Log.i("getTaint", "No covert channel");
+            */
         return taint;
     }
 
@@ -279,7 +278,6 @@ public class GuardService extends IGuardService.Stub{
             if(activeTx[i].taint != 0)
                 s = s + activeTx[i].getDeviceName() + " ";
         }
-        Log.i("getActiveSenders", "222");
         Log.d(TAG, s);
 
         return s;

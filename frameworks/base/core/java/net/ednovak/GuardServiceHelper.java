@@ -27,6 +27,9 @@ public class GuardServiceHelper {
 		Log.d("GuardServiceHelper", "component: " + trans.getComponentName());
 		Log.d("GuardServiceHelper", "device Name: " + trans.getDeviceName());
 		Log.d("GuardServiceHelper", "device ID: " + trans.getDeviceID());
+		Log.d("GuardServiceHelper", "taint: " + trans.taint);
+		Log.d("GuardServiceHelper", "flag: " + trans.flag);
+		Log.d("GuardServiceHelper", "delay: " + trans.delay);
     }
 
     public static int getIGSTaint(IGuardService igs, CovertReceiver rx){

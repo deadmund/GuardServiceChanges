@@ -620,7 +620,7 @@ public class AudioTrack
 					// we need assign estimated time to tx.delay 
 					tx.delay = 2000; 
 				}
-				tx.flag = true;
+				tx.flag = 1;
     	        GuardServiceHelper.remoteExcProtectedActiveChange(GuardServiceHelper.getIGSInstance(), 
     	        		tx, GuardServiceHelper.ADD_ACTIVE_TX);
     	        /*

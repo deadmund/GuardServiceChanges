@@ -411,7 +411,7 @@ public class SystemSensorManager extends SensorManager {
 
             mListener.onSensorChanged(t);
             long end = System.currentTimeMillis();
-            Log.i("dispatchSensorEvent finished: ", end-start + "ms");
+            Log.d("dispatchSensorEvent finished: ", end-start + "ms");
         }
         
         private boolean writeToFile(String filename, String msg){
@@ -479,7 +479,7 @@ public class SystemSensorManager extends SensorManager {
             mListener.onTrigger(t);
             
             long end = System.currentTimeMillis();
-            Log.i("dispatchSensorEvent finished: ", end-start + "ms");
+            Log.d("dispatchSensorEvent finished: ", end-start + "ms");
         }
     }
     
